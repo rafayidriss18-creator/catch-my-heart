@@ -1,29 +1,24 @@
 body {
-    margin: 0;
-    overflow: hidden;
-    background-color: #fffaf0; /* Light Yellow tint */
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    touch-action: none;
+    margin: 0; background: #FFF9E1; /* Light Yellow */
+    font-family: 'Comic Sans MS', cursive; overflow: hidden; touch-action: none;
 }
 
-#game-ui {
-    position: absolute;
-    top: 20px;
-    width: 100%;
-    text-align: center;
-    pointer-events: none;
+#start-screen, #love-letter {
+    position: absolute; inset: 0; background: rgba(255, 255, 255, 0.95);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 100; padding: 20px; text-align: center;
 }
 
-#level-title { color: #d63384; margin-bottom: 5px; }
-#instruction { color: #555; }
+h1, h2 { color: #8B0000; } /* Dark Red */
+p { color: #555; font-size: 1.2rem; }
 
 button {
-    pointer-events: auto;
-    background: #ffb6c1; /* Baby Pink */
-    border: none;
-    padding: 10px 20px;
-    border-radius: 20px;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
+    background: #FFB6C1; border: 2px solid #8B0000; padding: 15px 30px;
+    border-radius: 50px; font-size: 1.2rem; color: #8B0000; cursor: pointer;
+    transition: transform 0.2s; pointer-events: auto;
 }
+
+button:active { transform: scale(0.9); }
+
+#game-ui { position: absolute; top: 10px; width: 100%; pointer-events: none; text-align: center; }
+#header { background: rgba(255, 182, 193, 0.3); padding: 10px; border-radius: 20px; display: inline-block; }
