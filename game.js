@@ -1,6 +1,6 @@
 const { Engine, Render, Runner, World, Bodies, Composite, Vertices, Body, Events } = Matter;
 
-let engine, render, world, heart, goalSensor;
+let engine, render, world, heart, goal;
 let currentLevel = 1;
 let gameStarted = false;
 const drawColors = ["#FFB6C1", "#FFD700", "#FF69B4", "#8B0000"];
@@ -28,46 +28,45 @@ function init() {
     setupDrawing();
 }
 
-function createCup(x, y) {
-    const wallThick = 15;
-    const color = '#8B0000';
-    // Deep Cup logic
-    const lWall = Bodies.rectangle(x - 50, y, wallThick, 100, { isStatic: true, render: { fillStyle: color } });
-    const rWall = Bodies.rectangle(x + 50, y, wallThick, 100, { isStatic: true, render: { fillStyle: color } });
-    const bottom = Bodies.rectangle(x, y + 45, 115, wallThick, { isStatic: true, render: { fillStyle: color } });
-    
-    goalSensor = Bodies.rectangle(x, y + 10, 80, 50, { 
-        isStatic: true, isSensor: true, render: { visible: false }, label: 'goal' 
-    });
-    return [lWall, rWall, bottom, goalSensor];
-}
-
 function loadLevel(lvl) {
     World.clear(world);
     gameStarted = false;
     const display = document.getElementById('level-display');
     display.innerText = `Level ${lvl}`;
-    display.style.transform = "scale(1.2)"; // Simple animation
-    setTimeout(() => display.style.transform = "scale(1)", 200);
 
-    // Static Floor
+    // 1. The Ground (Static)
     World.add(world, Bodies.rectangle(window.innerWidth/2, window.innerHeight+10, window.innerWidth, 40, { isStatic: true }));
 
-    // Floating Heart
+    // 2. The Floating Heart (Pink Target)
     heart = Bodies.circle(150, 200, 24, { 
-        isStatic: true, restitution: 0.5, friction: 0.1, 
+        isStatic: true, restitution: 0.6, friction: 0.1, 
         render: { fillStyle: '#FF69B4' }, label: 'heart' 
     });
 
-    // Level Difficulty Logic
-    let goalX = window.innerWidth - 100;
-    let goalY = window.innerHeight - 150;
+    // 3. The Goal (A Rectangle on the ground)
+    let goalX = window.innerWidth - 120;
+    let goalWidth = 150;
+    
+    // Making it harder as levels progress
+    if (lvl > 10) goalWidth = 80; // Smaller target
+    if (lvl > 20) goalX = window.innerWidth / 2; // Center target
 
-    if (lvl > 2) World.add(world, Bodies.rectangle(window.innerWidth/2, 400, 200, 20, { isStatic: true, angle: 0.2 }));
-    if (lvl > 5) goalX = window.innerWidth / 2;
+    goal = Bodies.rectangle(goalX, window.innerHeight - 30, goalWidth, 20, { 
+        isStatic: true, 
+        isSensor: true, // Let the heart pass "into" it to trigger the win
+        render: { fillStyle: '#8B0000' }, // Dark Red
+        label: 'goal' 
+    });
 
-    const cup = createCup(goalX, goalY);
-    World.add(world, [heart, ...cup]);
+    // 4. Obstacles for Difficulty
+    if (lvl > 1) {
+        const barrier = Bodies.rectangle(window.innerWidth/2, window.innerHeight/2 + 100, 200, 20, { 
+            isStatic: true, angle: 0.3, render: { fillStyle: '#FFD700' } 
+        });
+        World.add(world, barrier);
+    }
+
+    World.add(world, [heart, goal]);
 }
 
 function setupDrawing() {
@@ -87,29 +86,24 @@ function setupDrawing() {
 
         if (!gameStarted) {
             gameStarted = true;
-            Body.setStatic(heart, false);
+            Body.setStatic(heart, false); // Drop the heart!
         }
 
-        // CREATE ONE SOLID BODY INSTEAD OF PIECES
         const color = drawColors[Math.floor(Math.random() * drawColors.length)];
-        
-        // This is the magic part: it creates a solid "path" body
         const center = Vertices.centre(points);
+        
+        // Solid Shape Physics
         const shape = Bodies.fromVertices(center.x, center.y, [points], {
-            render: { fillStyle: color, strokeStyle: '#000', lineWidth: 1 },
-            friction: 0.5
+            render: { fillStyle: color },
+            friction: 0.5,
+            restitution: 0.2
         }, true);
 
-        if (shape) {
-            World.add(world, shape);
-        } else {
-            // Fallback for simple lines if complex shape fails
-            const simpleLine = Bodies.rectangle(center.x, center.y, 100, 10, { render: { fillStyle: color }});
-            World.add(world, simpleLine);
-        }
+        if (shape) World.add(world, shape);
         points = [];
     };
 
+    // iPad & Mobile Touch Support
     canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDraw(e); });
     canvas.addEventListener('touchmove', (e) => { e.preventDefault(); moveDraw(e); });
     canvas.addEventListener('touchend', endDraw);
@@ -126,19 +120,22 @@ function getPos(e) {
 
 // WIN DETECTION
 Events.on(engine, 'afterUpdate', () => {
-    if (!heart || !goalSensor) return;
-    const distance = Math.hypot(heart.position.x - goalSensor.position.x, heart.position.y - goalSensor.position.y);
-    
-    if (distance < 40) { // Heart is inside the cup!
+    if (!heart || !goal) return;
+
+    // Check if heart center is overlapping the goal rectangle
+    const bounds = goal.bounds;
+    if (heart.position.x > bounds.min.x && heart.position.x < bounds.max.x &&
+        heart.position.y > (bounds.min.y - 20)) { // Give it a little "touch" buffer
+        
         World.remove(world, heart);
         heart = null;
-        document.getElementById('hype-text').innerText = "YES! I love you!! ❤️";
+        document.getElementById('hype-text').innerText = "YES! Caught it! ❤️";
         
         setTimeout(() => {
             if (currentLevel < 50) {
                 currentLevel++;
                 loadLevel(currentLevel);
-                document.getElementById('hype-text').innerText = "Catch my heart, Tanisha!";
+                document.getElementById('hype-text').innerText = "You're doing great, Tanisha!";
             } else {
                 document.getElementById('game-ui').style.display = 'none';
                 document.getElementById('love-letter').style.display = 'flex';
@@ -146,3 +143,5 @@ Events.on(engine, 'afterUpdate', () => {
         }, 1000);
     }
 });
+
+function resetLevel() { loadLevel(currentLevel); }
