@@ -3,15 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Catch My Heart</title>
+    <title>Tanisha's Heart Catch</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="game-ui">
-        <h2 id="level-title">Level 1: The Drop</h2>
-        <p id="instruction">Draw a shape to push the heart into the goal!</p>
-        <button onclick="resetLevel()">Reset Level</button>
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <h1>Tanisha's Heart Catch</h1>
+        <p>To my favorite person in the world... <br>I love you more than words can say. <br>Can you catch my heart?</p>
+        <button onclick="startGame()">Start Game</button>
     </div>
+
+    <!-- Game UI -->
+    <div id="game-ui" style="display:none;">
+        <div id="header">
+            <h2 id="level-display">Level 1</h2>
+            <p id="hype-text">You've got this, beautiful!</p>
+        </div>
+        <div id="controls">
+            <button onclick="resetLevel()">Retry</button>
+        </div>
+    </div>
+
+    <!-- Love Letter (Hidden until Level 50) -->
+    <div id="love-letter" style="display:none;">
+        <h2>My Dearest Tanisha,</h2>
+        <p>You reached the end! Just like in this game, you've caught my heart and held onto it for nearly three years...</p>
+        <p>[INSERT YOUR FULL PERSONAL LETTER HERE]</p>
+        <button onclick="location.reload()">Play Again</button>
+    </div>
+
     <div id="canvas-container"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
