@@ -12,16 +12,17 @@ function startGame() {
 }
 
 function init() {
+    // 1. Setup Engine
     engine = Engine.create();
     world = engine.world;
     
+    // 2. Setup Render
     render = Render.create({
         element: document.getElementById('canvas-container'),
         engine: engine,
         options: { 
             width: window.innerWidth, height: window.innerHeight, 
-            wireframes: false, background: 'transparent',
-            pixelRatio: window.devicePixelRatio 
+            wireframes: false, background: 'transparent'
         }
     });
 
@@ -31,43 +32,35 @@ function init() {
     
     loadLevel(currentLevel);
     setupDrawing();
+    setupWinDetection();
 }
 
 function loadLevel(lvl) {
     World.clear(world);
     gameStarted = false;
     document.getElementById('level-display').innerText = `Level ${lvl}`;
+    document.getElementById('hype-text').innerText = "Catch my heart, Tanisha!";
 
-    // 1. Solid Ground
-    const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 10, window.innerWidth, 60, { 
-        isStatic: true, render: { fillStyle: '#444' } 
-    });
+    // Ground
+    const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 20, window.innerWidth, 60, { isStatic: true });
 
-    // 2. Floating Heart (Pink Target)
+    // Heart - Label is CRITICAL for the retry/win logic
     heart = Bodies.circle(150, 150, 22, { 
         isStatic: true, 
         restitution: 0.4, 
-        friction: 0.2,
         render: { fillStyle: '#FF69B4' }, 
         label: 'heart' 
     });
 
-    // 3. The Goal Rectangle
+    // Goal
     let goalX = window.innerWidth - 150;
     if (lvl > 5) goalX = window.innerWidth / 2;
 
-    goal = Bodies.rectangle(goalX, window.innerHeight - 30, 140, 40, { 
+    goal = Bodies.rectangle(goalX, window.innerHeight - 40, 140, 40, { 
         isStatic: true, 
         render: { fillStyle: '#8B0000' }, 
         label: 'goal' 
     });
-
-    // Level Obstacles
-    if (lvl > 2) {
-        World.add(world, Bodies.rectangle(window.innerWidth/2, window.innerHeight/2, 200, 20, { 
-            isStatic: true, angle: Math.PI/6, render: { fillStyle: '#FFD700' } 
-        }));
-    }
 
     World.add(world, [ground, heart, goal]);
 }
@@ -76,16 +69,12 @@ function setupDrawing() {
     let points = [];
     const canvas = document.querySelector('canvas');
 
-    const startDraw = (e) => { 
-        points = [getPos(e)]; 
-    };
+    const startDraw = (e) => { points = [getPos(e)]; };
 
     const moveDraw = (e) => {
         const pos = getPos(e);
         const last = points[points.length - 1];
-        if (Vector.magnitude(Vector.sub(pos, last)) > 10) {
-            points.push(pos);
-        }
+        if (Vector.magnitude(Vector.sub(pos, last)) > 15) { points.push(pos); }
     };
 
     const endDraw = () => {
@@ -93,13 +82,12 @@ function setupDrawing() {
 
         if (!gameStarted) {
             gameStarted = true;
-            Body.setStatic(heart, false); // Heart falls on first draw
+            if (heart) Body.setStatic(heart, false);
         }
 
         const color = drawColors[Math.floor(Math.random() * drawColors.length)];
-        let segments = [];
-
-        // Create the stroke as a "Compound Body" - This makes it UNBREAKABLE
+        
+        // Create segments WITHOUT compound body to stop the vibrating
         for (let i = 0; i < points.length - 1; i++) {
             const p1 = points[i];
             const p2 = points[i + 1];
@@ -107,24 +95,16 @@ function setupDrawing() {
             const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
 
             const segment = Bodies.rectangle(
-                (p1.x + p2.x) / 2, 
-                (p1.y + p2.y) / 2, 
-                dist + 4, 12, {
+                (p1.x + p2.x) / 2, (p1.y + p2.y) / 2, 
+                dist + 10, 15, { // Thickened for stability
                     angle: angle,
-                    render: { fillStyle: color }
+                    render: { fillStyle: color },
+                    friction: 0.5,
+                    slop: 0.5 // Allows for smoother physics calculations
                 }
             );
-            segments.push(segment);
+            World.add(world, segment);
         }
-
-        // Merge all segments into one single physical object
-        const compoundBody = Body.create({
-            parts: segments,
-            friction: 0.5,
-            restitution: 0.1
-        });
-
-        World.add(world, compoundBody);
         points = [];
     };
 
@@ -142,29 +122,33 @@ function getPos(e) {
     return { x: t.clientX - rect.left, y: t.clientY - rect.top };
 }
 
-// WIN DETECTION
-Events.on(engine, 'collisionStart', (event) => {
-    event.pairs.forEach(pair => {
-        const labels = [pair.bodyA.label, pair.bodyB.label];
-        if (labels.includes('heart') && labels.includes('goal')) {
-            // Check if level has already changed to avoid double-triggering
-            if (!heart) return; 
+function setupWinDetection() {
+    Events.on(engine, 'collisionStart', (event) => {
+        event.pairs.forEach(pair => {
+            const labels = [pair.bodyA.label, pair.bodyB.label];
+            if (labels.includes('heart') && labels.includes('goal')) {
+                // Remove heart to prevent multiple triggers
+                if (!heart) return;
+                World.remove(world, heart);
+                heart = null;
 
-            World.remove(world, heart);
-            heart = null;
-            
-            document.getElementById('hype-text').innerText = "Perfect Catch! ❤️";
-            
-            setTimeout(() => {
-                if (currentLevel < 50) {
-                    currentLevel++;
-                    loadLevel(currentLevel);
-                    document.getElementById('hype-text').innerText = "I love you, Tanisha!";
-                } else {
-                    document.getElementById('game-ui').style.display = 'none';
-                    document.getElementById('love-letter').style.display = 'flex';
-                }
-            }, 800);
-        }
+                document.getElementById('hype-text').innerText = "YES! I love you!! ❤️";
+                
+                setTimeout(() => {
+                    if (currentLevel < 50) {
+                        currentLevel++;
+                        loadLevel(currentLevel);
+                    } else {
+                        document.getElementById('game-ui').style.display = 'none';
+                        document.getElementById('love-letter').style.display = 'flex';
+                    }
+                }, 800);
+            }
+        });
     });
-});
+}
+
+// FIXED RETRY BUTTON
+function resetLevel() {
+    loadLevel(currentLevel);
+}
